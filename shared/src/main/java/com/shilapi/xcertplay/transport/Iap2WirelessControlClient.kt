@@ -33,6 +33,8 @@ class Iap2WirelessControlClient(
         // Evaluated only in the authenticated control loop when its original deadline expires.
         // The caller must prove that the current CarPlay session is usable before keeping it alive.
         keepAliveAfterDeadline: () -> Boolean = { false },
+        // Experimental, Bluetooth bootstrap only: the phone already hosts the selected network.
+        startSessionAfterAuthentication: Boolean = false,
         onProgress: (String) -> Unit = {},
     ): Iap2WirelessControlResult {
         require(identification.wireless != null) {
@@ -77,6 +79,13 @@ class Iap2WirelessControlClient(
         val location = Iap2LocationReporter(locationProvider, onProgress)
         val vehicleStatus = Iap2VehicleStatusReporter(vehicleStatusProvider, onProgress)
         try {
+            if (startSessionAfterAuthentication) {
+                beforeStartSession()
+                sendStartSession(endpoint, ::sendControl, onStartSessionSent)
+                stage = Iap2WirelessControlStage.CARPLAY_START_SENT
+                carPlayStartSessionsSent++
+                onProgress("iap2 tx=0x4301 iphone-hotspot authenticated-start experimental=true")
+            }
             while (true) {
                 val remaining = deadline.remainingMillis(keepAliveAfterDeadline)
                 if (remaining == 0L) {

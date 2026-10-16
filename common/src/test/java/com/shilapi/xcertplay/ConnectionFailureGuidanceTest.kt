@@ -62,6 +62,18 @@ class ConnectionFailureGuidanceTest {
         assertEquals(R.string.connection_help_permissions, guide("Hotspot control permission is missing"))
     }
 
+    @Test fun iphoneHotspotFailureAsksTheCarToJoinTheSelectedPhone() {
+        for (reason in listOf(WirelessStartupFailure.FIRST_TCP_TIMEOUT, WirelessStartupFailure.HOTSPOT_CONFIGURATION)) {
+            assertEquals(R.string.settings_iphone_hotspot_help,
+                guide("unknown", startup = reason, mode = WirelessHotspotMode.EXISTING_WIFI, iphoneHotspot = true))
+        }
+        assertEquals(R.string.settings_iphone_hotspot_help,
+            guide("AirPlay TCP timeout", mode = WirelessHotspotMode.EXISTING_WIFI, iphoneHotspot = true))
+        assertEquals(R.string.connection_help_bluetooth,
+            guide("RFCOMM socket closed", mode = WirelessHotspotMode.EXISTING_WIFI, iphoneHotspot = true))
+        assertEquals(R.string.connection_help_hotspot, guide("createGroup failed", iphoneHotspot = true))
+    }
+
     @Test fun thePermissionTipDoesNotAskForUsbTrustPrompts() {
         val app = org.robolectric.RuntimeEnvironment.getApplication()
         assertFalse(app.getString(R.string.connection_help_permissions).contains("Trust"))
@@ -100,5 +112,6 @@ class ConnectionFailureGuidanceTest {
         reset: Boolean = false,
         startup: WirelessStartupFailure? = null,
         mode: WirelessHotspotMode = WirelessHotspotMode.MANUAL,
-    ): Int = ConnectionFailureGuidance.message(CarPlayStatus.Failed(message, reset, startup), wireless, mode)
+        iphoneHotspot: Boolean = false,
+    ): Int = ConnectionFailureGuidance.message(CarPlayStatus.Failed(message, reset, startup), wireless, mode, iphoneHotspot)
 }

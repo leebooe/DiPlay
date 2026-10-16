@@ -65,6 +65,9 @@ internal object CarPlayMediaKeys {
     private var transientFocusInterrupted = false
     private var appContext: Context? = null
     private var mediaAudioActive = false
+    private var mediaAudioEstablished = false
+    private var controlPolicy = CarPlayMediaControlPolicy()
+    private var keyDeduplicator = MediaKeyDeduplicator()
     private var nowPlaying = CarPlayNowPlaying()
     private var elapsedUpdatedAt = 0L
     private var artwork: Bitmap? = null
@@ -72,14 +75,23 @@ internal object CarPlayMediaKeys {
     private var placeholder: Bitmap? = null
 
     @Synchronized
-    fun attach(context: Context, next: CarPlayController) {
+    fun attach(context: Context, next: CarPlayController,
+        bluetoothAudio: Boolean = AirPlayPersistence.loadCarBluetoothAudio(context),
+        rendererFocusEnabled: Boolean = AirPlayPersistence.loadAudioFocusEnabled(context),
+    ) {
         if (controller !== next) {
             releaseLocked()
             artworkOwner = artworkQueue.newSession()
         }
         appContext = context.applicationContext
         controller = next
-        GeelyWheelKeys.start(context)
+        controlPolicy = CarPlayMediaControlPolicy(bluetoothAudio, GeelyWheelKeys.supportedHeadUnit,
+            rendererFocusEnabled, AirPlayPersistence.loadDisableMediaKeyAudioFocus(context))
+        GeelyWheelKeys.start(context, bluetoothAudio,
+            onMedia = { index -> send(index, "geely-wheel", next) },
+            onSiri = { onExternalSiriKey(next) })
+        WheelKeyLog.note("media control bluetoothAudio=$bluetoothAudio geely=${controlPolicy.geely} " +
+            "manageFocus=${controlPolicy.manageFocus}")
         com.shilapi.xcertplay.media.AmbientMusicController.claimPlaybackOwner(next)
         next.playbackListener = { playing ->
             com.shilapi.xcertplay.media.AmbientMusicController.phonePlaybackChanged(next, playing)
@@ -101,13 +113,13 @@ internal object CarPlayMediaKeys {
         expected.nowPlayingListener = null
         expected.artworkListener = null
         controller = null
-        GeelyWheelKeys.stop()
         releaseLocked()
     }
 
     /** Called when CarPlay music starts or stops; may run on any thread. */
     fun onMediaAudioChanged(active: Boolean) {
-        mainHandler.post { synchronized(this) { updateLocked(active) } }
+        val expected = synchronized(this) { controller } ?: return
+        mainHandler.post { synchronized(this) { if (controller === expected) updateLocked(active) } }
     }
 
     /** The iPhone started or stopped playing; may run on any thread. */
@@ -278,13 +290,15 @@ internal object CarPlayMediaKeys {
         val context = appContext ?: return
         if (controller == null) return
         mediaAudioActive = active
+        if (active) mediaAudioEstablished = true
+        if (!controlPolicy.canForward(mediaAudioEstablished)) return
         if (active && session == null) start(context) else if (active) regainFocusLocked()
         publishPlaybackStateLocked()
     }
 
     private fun start(context: Context) {
         val expectedController = controller ?: return
-        val focusDisabled = AirPlayPersistence.loadDisableMediaKeyAudioFocus(context)
+        val focusDisabled = !controlPolicy.manageFocus
         transientFocusInterrupted = false
         val granted = if (focusDisabled) {
             // Some OEMs route physical volume buttons to the focus owner. Keep an active
@@ -313,7 +327,10 @@ internal object CarPlayMediaKeys {
             }
         }
         session = MediaSession(context, "DiPlay CarPlay").apply {
-            setCallback(callback, mainHandler)
+            setCallback(CarPlayMediaCallback(
+                experimentalDiLink3Keys = { BydOutputSettings.carPlayCallControls(context) },
+                send = { index, source -> send(index, source, expectedController) },
+            ), mainHandler)
             setMetadata(androidMetadata(nowPlaying, shownArtworkLocked()))
             isActive = true
         }
@@ -363,6 +380,7 @@ internal object CarPlayMediaKeys {
     }
 
     private fun releaseLocked() {
+        GeelyWheelKeys.stop()
         focusOwner = null
         controller?.let(com.shilapi.xcertplay.media.AmbientMusicController::releasePlaybackOwner)
         artworkOwner = null
@@ -377,6 +395,9 @@ internal object CarPlayMediaKeys {
         }
         session = null
         mediaAudioActive = false
+        mediaAudioEstablished = false
+        controlPolicy = CarPlayMediaControlPolicy()
+        keyDeduplicator = MediaKeyDeduplicator()
         nowPlaying = CarPlayNowPlaying()
         artwork = null
         artworkCache.clear()
@@ -408,32 +429,60 @@ internal object CarPlayMediaKeys {
         )
     }
 
-    private fun send(index: Int, source: String) {
+    private fun send(index: Int, source: String, expectedController: CarPlayController? = null): Boolean {
+        val target = synchronized(this) {
+            val current = controller
+            if (expectedController != null && current !== expectedController) return false
+            if (current != null && !controlPolicy.canForward(mediaAudioEstablished) && CarPlayVideo.activity == null) {
+                WheelKeyLog.note("media key skipped source=$source bluetoothAudio=${controlPolicy.bluetoothAudio} " +
+                    "awaitingMedia=${controlPolicy.geely && !mediaAudioEstablished}")
+                return false
+            }
+            val group = when (source) {
+                "geely-wheel", "window", "accessibility" -> source
+                else -> "media-session"
+            }
+            if (current != null && controlPolicy.geely &&
+                !keyDeduplicator.accept(index, group, SystemClock.elapsedRealtime())) {
+                WheelKeyLog.note("media key duplicate source=$source button=$index")
+                return false
+            }
+            current
+        }
         // While the car's video player is on screen the wheel drives it: a CarPlay play/pause would
         // make the iPhone end the video session.
         if (CarPlayVideo.onMediaKey(index)) {
             Log.i(TAG, "media key $source -> car video player $index")
             WheelKeyLog.note("media key $source -> car video player $index")
-            return
+            return true
         }
-        val sent = synchronized(this) { controller }?.sendMediaButton(index) ?: false
+        val sent = target?.sendMediaButton(index) ?: false
         Log.i(TAG, "media key $source -> CarPlay $index sent=$sent")
         WheelKeyLog.note("media key $source -> CarPlay $index sent=$sent")
+        return sent
     }
 
     /** A steering-wheel media key captured outside the Android key stream (Geely/Lynk). */
     internal fun onExternalMediaKey(index: Int) = send(index, "geely-wheel")
 
-    /** The steering-wheel microphone key captured outside the Android key stream (Geely/Lynk). */
-    internal fun onExternalSiriKey(): Boolean {
-        val active = synchronized(this) { controller } ?: return false
-        return runCatching { active.requestSiri() }.getOrDefault(false)
-    }
+    /** Geely window/accessibility input shares ownership and deduplication with OneOS callbacks. */
+    internal fun onHardwareMediaKey(expected: CarPlayController?, index: Int, source: String): Boolean =
+        expected != null && send(index, source, expected)
 
-    private val callback = CarPlayMediaCallback(
-        experimentalDiLink3Keys = { appContext?.let(BydOutputSettings::carPlayCallControls) == true },
-        send = ::send,
-    )
+    @Synchronized
+    internal fun ownsHardwareMediaKeys(expected: CarPlayController?): Boolean =
+        expected != null && controller === expected &&
+            (controlPolicy.canForward(mediaAudioEstablished) || CarPlayVideo.activity != null)
+
+    /** The steering-wheel microphone key captured outside the Android key stream (Geely/Lynk). */
+    internal fun onExternalSiriKey(expectedController: CarPlayController? = null): Boolean {
+        val active = synchronized(this) {
+            controller?.takeIf { expectedController == null || it === expectedController }
+        } ?: return false
+        return runCatching { active.requestSiri() }.getOrDefault(false).also {
+            WheelKeyLog.note("geely wheel Siri requested=$it")
+        }
+    }
 
     /** Whether [next] changes what the media session's metadata shows; position and play state do not. */
     internal fun metadataChanged(previous: CarPlayNowPlaying, next: CarPlayNowPlaying): Boolean =

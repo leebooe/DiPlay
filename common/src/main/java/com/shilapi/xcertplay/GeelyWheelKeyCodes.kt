@@ -25,4 +25,24 @@ internal object GeelyWheelKeyCodes {
      */
     fun registeredCodes(bluetoothAudio: Boolean): IntArray =
         if (bluetoothAudio) SIRI_ONLY else ALL
+
+    /** Android aliases also appear inside OneOS callbacks on some FX11 firmware. */
+    fun canonicalize(code: Int): Int? = when (code) {
+        KEY_PLAY_PAUSE, 85 -> KEY_PLAY_PAUSE
+        KEY_NEXT, 87, 110005, 210005 -> KEY_NEXT
+        KEY_PREVIOUS, 88, 110006, 210006 -> KEY_PREVIOUS
+        KEY_VOICE_ASSIST, 231 -> KEY_VOICE_ASSIST
+        else -> null
+    }
+
+    /** OneOS uses the stock subscription table; the decoder retains only media keys and long-press Siri. */
+    fun oneOsListenerCodes(bluetoothAudio: Boolean): IntArray =
+        if (bluetoothAudio) intArrayOf(KEY_VOICE_ASSIST, 231)
+        else ((0..283).toList() + listOf(
+            110001, 110002, 110003, 110004, 110005, 110006, 110007, 110008, 110009, 110010,
+            200003, 200004, 200005, 200006, 200024, 200025, 200082, KEY_PLAY_PAUSE, KEY_NEXT, KEY_PREVIOUS,
+            200110, 200164, 200176, KEY_VOICE_ASSIST, 200400, 200600,
+            210001, 210002, 210003, 210004, 210005, 210006, 210007, 210008, 210009, 210010,
+            210020, 300001, 300002, 300003, 300005, 300010, 300020, 300021, 300022, 300023, 300030, 300031,
+        )).distinct().toIntArray()
 }

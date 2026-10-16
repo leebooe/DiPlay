@@ -68,7 +68,13 @@ class CarPlayRuntimeConfig(
     val wifiP2pPreferredChannel: Int = WifiP2pChannels.AUTO,
     val existingWifiSsid: String = "",
     val existingWifiPassphrase: String = "",
+    /** Opt-in bootstrap for the CarPlay iPhone acting as the Wi-Fi access point. */
+    val existingWifiIphoneHotspot: Boolean = false,
 ) {
+    val usesIphoneHotspot: Boolean
+        get() = transport == CarPlayTransport.WIRELESS &&
+            wirelessHotspotMode == WirelessHotspotMode.EXISTING_WIFI && existingWifiIphoneHotspot
+
     init {
         require(iphoneDevices.all { it.vendorId == APPLE_VENDOR_ID }) {
             "iPhone USB identities must use Apple vendor ID 0x${APPLE_VENDOR_ID.toString(16)}"

@@ -12,6 +12,8 @@ Upstream credits [LIVI](https://github.com/f-io/LIVI) and [Showcase](https://git
 
 ## CarPlay icon
 
+The Geely factory car-button artwork and label lookup in `GeelyFactoryCarPlay.kt`, and the generic home-button vector `ic_car_home_fallback.xml`, adapt [CoderLin99/DiPlay at commit 138baaf8](https://github.com/CoderLin99/DiPlay/tree/138baaf8a71ce57433538801162c599e9061b745), distributed under GNU GPL version 3. Factory artwork is read at runtime from the head unit's `/vendor/etc/carplay` directory; vehicle-brand assets remain subject to their owners' rights.
+
 The unmodified icon was obtained from Apple's developer site at:
 
 https://developer.apple.com/assets/elements/icons/carplay/carplay-96x96_2x.png

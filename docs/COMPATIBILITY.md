@@ -18,7 +18,9 @@ See [BYD navigation](BYD_NAVIGATION.md) for the exact verified firmware and life
 
 ## Geely / Lynk & Co steering-wheel keys
 
-On the Geely/Lynk & Co head unit (`geely_fx11`, model `CS11_A4`, DesaySV, Android 11) the steering wheel does not produce standard `KEYCODE_MEDIA_*` events, so the media session and the accessibility path never see it. DiPlay detects this head unit and subscribes to the wheel's vendor key codes on the car's own input service (`com.geely.inputservice`), then forwards play/pause and skip to the active CarPlay session, and the microphone key's long press to Siri. The subscription exists only while a CarPlay session is active, and on every other head unit nothing is bound and behaviour is unchanged.
+On the Geely/Lynk & Co head unit (`geely_fx11`, model `CS11_A4`, DesaySV, Android 11) the wheel uses vendor key codes. DiPlay first subscribes through the direct input service (`com.geely.inputservice`). A refused binding, registration failure, service loss or 3-second registration timeout releases that binding and tries `com.geely.service.oneosapi.OneOSApiService`. OneOS supplies its input manager through service type 8. Each connection owns one backend and listener; failed attempts retry after cleanup. Model codes G636, FX11, KX11 and E245 also enable this wheel compatibility path.
+
+Media keys are normalized across vendor and standard aliases. Raw down/up events and their gesture copies share a decoder; matching commands from the vendor, media-session, foreground-window and accessibility paths share a 120 ms duplicate window on Geely units. The microphone key keeps its long-press Siri action. A real CarPlay music stream establishes media-control ownership, which is retained through pauses. With **Car Bluetooth audio** enabled, the car owns music keys and music focus, while DiPlay keeps the Siri subscription. When the CarPlay audio renderer manages focus on Geely, the media-key session shares that ownership policy. Settings are captured for each new connection.
 
 Two limits come from the car, not from DiPlay:
 
@@ -27,7 +29,7 @@ Two limits come from the car, not from DiPlay:
 
 When the car's own music app is playing as well, the wheel reaches both it and CarPlay: the head unit routes the key to its current audio source before any app sees it.
 
-Tested on the car named above; other Geely/Lynk firmware is untested.
+The original direct input-service path has contributor vehicle feedback on the head unit named above. The OneOS fallback, duplicate handling and unified ownership changes have regression cases in source and await execution and vehicle acceptance. See [Boyue L controls](BOYUE-L-CONTROLS.md) for migration scope, diagnostic fields and an acceptance sequence.
 
 ## Android 9 Wi-Fi Direct and experimental features
 

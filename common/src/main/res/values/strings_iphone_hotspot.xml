@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">iPhone Personal Hotspot (experimental)</string>
+    <string name="settings_iphone_hotspot_description">On the CarPlay iPhone, turn on Personal Hotspot and Allow Others to Join. Connect the head unit to it in system Wi-Fi settings, save its name and password below, and select that iPhone over Bluetooth. This mode needs testing with your iOS version. Changes apply at the next connection.</string>
+    <string name="settings_iphone_hotspot_help">Keep Personal Hotspot enabled on the selected CarPlay iPhone and connect the head unit to it. Check the saved name and password and retry. Save a diagnostic report if CarPlay still fails; this mode is experimental.</string>
+</resources>

@@ -60,6 +60,13 @@ then connect as usual. No car hotspot or Wi-Fi Direct group is created. Disable
 router client isolation. See [Existing Wi-Fi](EXISTING_WIFI.md) for build
 requirements, network limitations and device validation.
 
+To try using the CarPlay iPhone itself as the hotspot, enable its Personal Hotspot
+and Allow Others to Join, connect the head unit to it in Android Wi-Fi settings,
+then enable **iPhone Personal Hotspot (experimental)** inside Existing Wi-Fi / Same LAN.
+Save that hotspot's name and password and select that same iPhone over Bluetooth.
+Changes apply at the next connection. This bootstrap strategy needs on-device iOS
+acceptance; see [iPhone hotspot setup and scope](EXISTING_WIFI.md#carplay-iphone-as-the-hotspot-experimental).
+
 WI-FI DIRECT CHANNEL — DIPLAY
 In Settings → Connection setup, choose Wi-Fi Direct, then Preferred channel.
 Auto is the default and keeps DiPlay's automatic channel selection. You can

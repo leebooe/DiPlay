@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">نقطة الاتصال الشخصية لـ iPhone (تجريبي)</string>
+    <string name="settings_iphone_hotspot_description">فعّل نقطة الاتصال الشخصية والسماح للآخرين بالانضمام على نفس iPhone المستخدم لـ CarPlay. صِل وحدة السيارة من إعدادات Wi-Fi. احفظ الاسم وكلمة المرور أدناه واختر نفس iPhone عبر Bluetooth. يلزم الاختبار مع إصدار iOS لديك. تسري التغييرات عند الاتصال التالي.</string>
+    <string name="settings_iphone_hotspot_help">أبقِ نقطة الاتصال مفعّلة على iPhone المحدد لـ CarPlay وصِل وحدة السيارة بها. راجع الاسم وكلمة المرور ثم أعد المحاولة. احفظ تقرير تشخيص إذا استمر الفشل؛ هذا الوضع تجريبي.</string>
+</resources>

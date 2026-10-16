@@ -3352,11 +3352,18 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 .also { hotspotJoinControls = it }
             parent.addView(join.build())
         } else if (mode == WirelessHotspotMode.EXISTING_WIFI) {
+            toggle(parent, getString(R.string.settings_iphone_hotspot_title),
+                getString(R.string.settings_iphone_hotspot_description),
+                AirPlayPersistence.loadExistingWifiIphoneHotspot(this)) {
+                AirPlayPersistence.saveExistingWifiIphoneHotspot(this, it)
+                markReconnectNeeded()
+            }
             parent.addView(label(getString(R.string.existing_wifi_instructions), 16, MUTED))
             parent.addView(button(getString(R.string.open_car_wi_fi_settings), false) { openCarClientWifiSettings() }, matchButton(12, 60))
             parent.addView(button(getString(R.string.existing_wifi_details), false) {
                 askHotspotCredentials(existingWifi = true) { ssid, password, _ ->
                     AirPlayPersistence.saveExistingWifiCredentials(this, ssid, password)
+                    markReconnectNeeded()
                     toast(getString(R.string.saved_for_your_next_connection))
                 }
             }, matchButton(12, 60))
@@ -5278,10 +5285,11 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     }
 
     private fun carButtonControls(parent: LinearLayout) {
-        val custom = AirPlayPersistence.loadCustomAirPlayIconFile(this)?.let { BitmapFactory.decodeFile(it.absolutePath) }
+        val selected = CarButtonIcons.load(this)
+        val icon = selected.icons.last()
         val preview = row().apply { gravity = Gravity.CENTER_VERTICAL }
         preview.addView(ImageView(this).apply {
-            setImageBitmap(custom ?: BitmapFactory.decodeResource(resources, R.raw.ic_car_home))
+            setImageBitmap(BitmapFactory.decodeByteArray(icon.data, 0, icon.data.size))
             scaleType = ImageView.ScaleType.CENTER_CROP
             background = rounded(SURFACE, BORDER)
             clipToOutline = true
@@ -5289,7 +5297,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         }, LinearLayout.LayoutParams(dp(72), dp(72)).apply { marginEnd = dp(16) })
         val text = column()
         text.addView(label(getString(R.string.car_button_icon), 18, TEXT, true))
-        text.addView(label(getString(if (custom != null) R.string.car_button_icon_custom else R.string.default_icon), 14, MUTED).apply { setPadding(0, dp(6), 0, 0) })
+        text.addView(label(getString(selected.statusRes), 14, MUTED).apply { setPadding(0, dp(6), 0, 0) })
         preview.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
         parent.addView(preview)
         parent.addView(button(getString(R.string.choose_image), false) {
@@ -5299,7 +5307,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 documentPickerIsSystem = documentPickerIsSystem(),
             ).onFailure { toast(getString(R.string.this_head_unit_has_no_image_picker)) }
         }, matchButton(16, 60))
-        if (custom != null) parent.addView(button(getString(R.string.default_icon), false) {
+        if (selected.custom) parent.addView(button(getString(R.string.default_icon), false) {
             AirPlayPersistence.clearCustomAirPlayIcon(this)
             refreshCarButton()
             carButtonSaved()

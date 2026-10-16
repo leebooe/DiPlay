@@ -5,6 +5,7 @@ import android.os.Looper
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.view.View
 import android.view.ViewGroup
 import com.shilapi.xcertplay.network.CarHotspotSettings
@@ -38,9 +39,12 @@ class ExistingWifiSettingsTest {
         AirPlayPersistence.saveManualHotspotSsid(app, "Car hotspot")
         AirPlayPersistence.saveManualHotspotPassphrase(app, "car-password")
         AirPlayPersistence.saveExistingWifiCredentials(app, "Pocket", "pocket-password")
+        assertFalse(AirPlayPersistence.loadExistingWifiIphoneHotspot(app))
+        AirPlayPersistence.saveExistingWifiIphoneHotspot(app, true)
         for (mode in listOf(WirelessHotspotMode.EXISTING_WIFI, WirelessHotspotMode.WIFI_P2P, WirelessHotspotMode.MANUAL)) {
             AirPlayPersistence.saveWirelessHotspotMode(app, mode)
             assertEquals(mode, AirPlayPersistence.loadWirelessHotspotMode(app))
+            assertTrue(AirPlayPersistence.loadExistingWifiIphoneHotspot(app))
             assertEquals("Pocket", AirPlayPersistence.loadExistingWifiSsid(app))
             assertEquals("pocket-password", AirPlayPersistence.loadExistingWifiPassphrase(app))
             assertEquals("Car hotspot", AirPlayPersistence.loadManualHotspotSsid(app))
@@ -71,10 +75,34 @@ class ExistingWifiSettingsTest {
         assertEquals(" Pocket ", AirPlayPersistence.loadExistingWifiSsid(app))
     }
 
+    @Test fun iphoneHotspotSwitchSavesAndIsRestoredInTheLanControls() {
+        AirPlayPersistence.saveWirelessHotspotMode(app, WirelessHotspotMode.EXISTING_WIFI)
+        fun hotspotSwitch() = controls().filterIsInstance<Switch>().single {
+            it.contentDescription == activity.getString(com.shilapi.xcertplay.host.R.string.settings_iphone_hotspot_title)
+        }
+        assertFalse(hotspotSwitch().isChecked)
+        hotspotSwitch().isChecked = true
+        assertTrue(AirPlayPersistence.loadExistingWifiIphoneHotspot(app))
+        assertTrue(hotspotSwitch().isChecked)
+    }
+
+    @Test fun overlayDetectsAStagedHotspotEditAndSavesItExplicitly() {
+        val host = Robolectric.buildActivity(CarPlayHostActivity::class.java).get()
+        fun signature() = host.javaClass.getDeclaredMethod("menuSettingsSignature")
+            .apply { isAccessible = true }.invoke(host)
+        val before = signature()
+        host.javaClass.getDeclaredField("existingWifiIphoneHotspot").apply { isAccessible = true }.setBoolean(host, true)
+        assertNotEquals(before, signature())
+        assertFalse(AirPlayPersistence.loadExistingWifiIphoneHotspot(app))
+        host.javaClass.getDeclaredMethod("persistMenuSettings").apply { isAccessible = true }.invoke(host)
+        assertTrue(AirPlayPersistence.loadExistingWifiIphoneHotspot(app))
+    }
+
     @Test fun hostRuntimeReceivesLanCredentialsAndValidationIsLimitedToWirelessLan() {
         AirPlayPersistence.saveWirelessEnabled(app, true)
         AirPlayPersistence.saveWirelessHotspotMode(app, WirelessHotspotMode.EXISTING_WIFI)
         AirPlayPersistence.saveExistingWifiCredentials(app, "Pocket", "pocket-password")
+        AirPlayPersistence.saveExistingWifiIphoneHotspot(app, true)
         val host = Robolectric.buildActivity(CarPlayHostActivity::class.java).get()
         CarPlayHostActivity::class.java.getDeclaredField("airPlayIdentity").apply { isAccessible = true }
             .set(host, AirPlayPersistence.loadIdentity(app))
@@ -83,6 +111,12 @@ class ExistingWifiSettingsTest {
             .apply { isAccessible = true }.invoke(host) as CarPlayRuntimeConfig
         assertEquals("Pocket", runtime().existingWifiSsid)
         assertEquals("pocket-password", runtime().existingWifiPassphrase)
+        assertTrue(runtime().usesIphoneHotspot)
+        AirPlayPersistence.saveWirelessHotspotMode(app, WirelessHotspotMode.WIFI_P2P)
+        CarPlayHostActivity::class.java.getDeclaredMethod("loadPersistedSettings").apply { isAccessible = true }.invoke(host)
+        assertFalse(runtime().usesIphoneHotspot)
+        AirPlayPersistence.saveWirelessHotspotMode(app, WirelessHotspotMode.EXISTING_WIFI)
+        CarPlayHostActivity::class.java.getDeclaredMethod("loadPersistedSettings").apply { isAccessible = true }.invoke(host)
         assertEquals(CarPlayTransport.WIRELESS, runtime().transport)
         val permissions = CarPlayHostActivity::class.java.getDeclaredMethod("requiredWirelessPermissions")
             .apply { isAccessible = true }.invoke(host) as List<*>
@@ -91,6 +125,7 @@ class ExistingWifiSettingsTest {
         AirPlayPersistence.saveWirelessEnabled(app, false)
         CarPlayHostActivity::class.java.getDeclaredMethod("loadPersistedSettings").apply { isAccessible = true }.invoke(host)
         assertEquals(CarPlayTransport.WIRED, runtime().transport)
+        assertFalse(runtime().usesIphoneHotspot)
     }
 
     private fun controls(): List<View> {

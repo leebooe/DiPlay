@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">iPhoneのインターネット共有（実験的機能）</string>
+    <string name="settings_iphone_hotspot_description">CarPlayで使う同じiPhoneでインターネット共有と「ほかの人の接続を許可」をオンにし、車載機のWi-Fi設定で接続してください。下に名前とパスワードを保存し、BluetoothでそのiPhoneを選択してください。お使いのiOSで実機確認が必要です。変更は次回の接続時に適用されます。</string>
+    <string name="settings_iphone_hotspot_help">選択したCarPlay用iPhoneのインターネット共有をオンにし、車載機を接続してください。保存した名前とパスワードを確認して再試行してください。失敗が続く場合は診断レポートを保存してください。このモードは実験的機能です。</string>
+</resources>

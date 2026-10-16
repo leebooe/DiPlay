@@ -20,6 +20,42 @@ hide it, verify the manual configuration in Android settings. Precise location
 permission and enabled system location can make network details readable, but are
 not required merely to start this mode or tied to optional GPS reporting.
 
+## CarPlay iPhone as the hotspot (experimental)
+
+To try a network hosted by the same iPhone that runs CarPlay:
+
+1. On that iPhone, enable Personal Hotspot and Allow Others to Join.
+2. Connect the head unit to that hotspot in Android's Wi-Fi settings.
+3. In **Settings → Connection → Connection setup → Existing Wi-Fi / Same LAN**,
+   enable **iPhone Personal Hotspot (experimental)** and save the hotspot's exact
+   name and password under **Wi-Fi details**.
+4. Keep Bluetooth on and select that same iPhone in DiPlay, then connect.
+
+The switch defaults to off. Its changes apply at the next connection; the Settings
+screen offers the existing reconnect bar. The in-session settings overlay applies
+the switch with its **Save and reconnect** action. The saved choice is active only
+for wireless Existing Wi-Fi sessions. Router-based sessions use the normal
+bootstrap when the switch is off.
+
+This opt-in uses the head unit's DHCP IPv4 address for discovery, listening and
+the Bluetooth endpoint. It keeps retries on IPv4 and waits for a usable IPv4 address
+instead of publishing an IPv6-only endpoint. After identification, MFi authentication
+and subscriptions complete, DiPlay sends one proactive `0x4301` StartSession over
+Bluetooth with its reachable endpoint. Normal `0x5702` Wi-Fi configuration requests,
+`0x4e0e` transport notifications and `0x4300` availability replies remain handled.
+The runtime iAP2 tunnel keeps its normal startup sequence. DiPlay preserves the
+existing Wi-Fi connection and routing and leaves joining the hotspot to Android
+system settings. The selected link is rechecked before each StartSession.
+
+This is an experimental bootstrap strategy, with end-to-end iPhone Personal Hotspot
+acceptance pending. An authenticated StartSession write or an attached Wi-Fi network
+alone does not establish CarPlay support for an iOS version. The acceptance result
+must include a rendered CarPlay session, online navigation/music, hotspot stability
+and reconnect after a dropped hotspot. If startup fails, save a diagnostic report
+including the attempt time, iPhone model and iOS version. Diagnostics record
+`iphoneHotspot=true` and `iphone-hotspot authenticated-start`; redact private
+information before sharing.
+
 ## Implementation
 
 `ExistingWifiManager` implements the wireless backend contract. It selects the single
@@ -28,8 +64,9 @@ reads channel information from WifiInfo. Internet validation is not required for
 communication. Ambiguous Wi-Fi connections and observable configuration mismatches
 fail with a configuration error.
 
-The bootstrap endpoint prefers a scoped link-local IPv6 address, falling back to IPv4.
-Existing Wi-Fi also retains the other usable address family for discovery and TCP.
+The normal bootstrap endpoint prefers IPv4, or a saved address-family preference,
+with scoped link-local IPv6 as fallback. Normal Existing Wi-Fi also retains the
+other usable address family for discovery and TCP. The iPhone hotspot option uses IPv4 only.
 Each family has a JmDNS registry and a listener bound to the same selected interface
 and port. Port fallback is shared and partially bound listeners are cleaned up.
 Discovery probes use a matching source family and local IPv6 interface scope.

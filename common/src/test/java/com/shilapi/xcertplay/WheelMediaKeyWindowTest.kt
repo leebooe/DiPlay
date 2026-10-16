@@ -4,6 +4,8 @@ import android.content.Context
 import android.media.AudioManager
 import android.content.res.Configuration
 import android.os.Handler
+import android.os.Build
+import android.os.Looper
 import android.view.KeyEvent
 import com.shilapi.xcertplay.airplay.AirPlaySession
 import com.shilapi.xcertplay.airplay.CarPlayMediaButton
@@ -12,6 +14,7 @@ import com.shilapi.xcertplay.hud.BydCarPlayCall
 import com.shilapi.xcertplay.hud.CarPlayCallState
 import com.shilapi.xcertplay.iap2.message.Iap2Messages
 import com.shilapi.xcertplay.orchestration.CarPlayController
+import com.shilapi.xcertplay.media.CarPlayNowPlaying
 import java.util.concurrent.ExecutorService
 import org.junit.After
 import org.junit.Assert.*
@@ -20,9 +23,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.*
 import org.robolectric.Robolectric
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.LooperMode
+import org.robolectric.util.ReflectionHelpers
 
 /**
  * The steering wheel's next/previous keys, claimed by the CarPlay window itself.
@@ -61,6 +67,40 @@ class WheelMediaKeyWindowTest {
         BydCarPlayCall.end()
         CarPlayBackgroundSession.clear()
         host.getSharedPreferences("xcertplay_airplay", Context.MODE_PRIVATE).edit().clear().commit()
+    }
+
+    @Test fun geelyBluetoothMusicLeavesWindowMediaKeysWithTheCar() {
+        val model = Build.MODEL
+        try {
+            ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "FX11_LOW")
+            `when`(controller.nowPlayingSnapshot()).thenReturn(CarPlayNowPlaying())
+            CarPlayMediaKeys.attach(RuntimeEnvironment.getApplication(), controller, bluetoothAudio = true)
+            assertFalse(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_NEXT, true)))
+            verify(controller, never()).sendMediaButton(anyInt())
+        } finally {
+            CarPlayMediaKeys.detach(controller)
+            shadowOf(Looper.getMainLooper()).idle()
+            ReflectionHelpers.setStaticField(Build::class.java, "MODEL", model)
+        }
+    }
+
+    @Test fun geelyVendorAndWindowCopiesShareTheSameMediaPress() {
+        val model = Build.MODEL
+        try {
+            ReflectionHelpers.setStaticField(Build::class.java, "MODEL", "FX11_LOW")
+            `when`(controller.nowPlayingSnapshot()).thenReturn(CarPlayNowPlaying())
+            CarPlayMediaKeys.attach(RuntimeEnvironment.getApplication(), controller,
+                bluetoothAudio = false, rendererFocusEnabled = true)
+            CarPlayMediaKeys.onMediaAudioChanged(true)
+            shadowOf(Looper.getMainLooper()).idle()
+            assertTrue(CarPlayMediaKeys.onExternalMediaKey(CarPlayMediaButton.NEXT))
+            assertTrue(host.dispatchKeyEvent(key(KeyEvent.KEYCODE_MEDIA_NEXT, true)))
+            verify(controller, times(1)).sendMediaButton(CarPlayMediaButton.NEXT)
+        } finally {
+            CarPlayMediaKeys.detach(controller)
+            shadowOf(Looper.getMainLooper()).idle()
+            ReflectionHelpers.setStaticField(Build::class.java, "MODEL", model)
+        }
     }
 
     @Test fun theWheelTrackKeysReachCarPlay() {

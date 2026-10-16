@@ -24,6 +24,7 @@ class ExistingWifiManager(
     private val passphrase: String,
     private val onDiagnostic: (String) -> Unit = {},
     private val onNetworkChanged: () -> Unit = {},
+    private val iphoneHotspot: Boolean = false,
 ) : WirelessHotspotManager {
     private val connectivity = context.applicationContext.getSystemService(ConnectivityManager::class.java)
         ?: throw IllegalStateException("ConnectivityManager is unavailable")
@@ -75,11 +76,11 @@ class ExistingWifiManager(
             val properties = network?.let(connectivity::getLinkProperties)
             val name = properties?.interfaceName
             val iface = name?.let { runCatching { NetworkInterface.getByName(it) }.getOrNull() }
-            val address = if (iface == null) null else properties?.let {
-                wirelessHostAddress(it.linkAddresses.map { link -> link.address }, iface.index)
-            }
+            val addresses = if (iface == null || properties == null) emptyList() else
+                existingWifiHostAddresses(properties.linkAddresses.map { it.address }, iface.index, iphoneHotspot)
+            val address = addresses.firstOrNull()
             if (network != null && name != null && address != null) {
-                val addresses = existingWifiHostAddresses(properties.linkAddresses.map { it.address }, iface!!.index)
+                val selectedInterface = iface ?: throw IOException("Existing Wi-Fi interface disappeared")
                 val capabilities = connectivity.getNetworkCapabilities(network)
                 val networkInfo = if (Build.VERSION.SDK_INT >= 31) capabilities?.transportInfo as? WifiInfo else null
                 // On-demand capabilities can redact SSID/BSSID even when the legacy station
@@ -113,7 +114,7 @@ class ExistingWifiManager(
                     selected = network
                     host = address
                     hosts = addresses
-                    interfaceIndex = iface.index
+                    interfaceIndex = selectedInterface.index
                     interfaceName = name
                     connectivity.registerNetworkCallback(requestWithoutDefaultCapabilities()
                         .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -127,7 +128,7 @@ class ExistingWifiManager(
                 }
                 onDiagnostic("Existing Wi-Fi attached iface=$name host=${address.hostAddress} " +
                     "networkNameReadable=${liveSsid != null} channel=$channel security=${security()} " +
-                    "receiverIdentity=saved")
+                    "receiverIdentity=saved iphoneHotspot=$iphoneHotspot")
                 return WirelessHotspotInfo(ssid, passphrase, security(), channel, frequency,
                     // The router's BSSID is not this receiver's AirPlay device identity.
                     null, name, address, when {
@@ -138,6 +139,9 @@ class ExistingWifiManager(
                     }, WirelessHotspotBackend.EXISTING_WIFI, hostAddresses = addresses, accessPointBssid = apBssid)
             }
             if ((System.nanoTime() - started) / 1_000_000 >= timeoutMillis) {
+                if (iphoneHotspot) throw IOException(
+                    "iPhone hotspot IPv4 connection is not ready. Enable Personal Hotspot on the selected iPhone and connect the head unit to it in Wi-Fi settings",
+                )
                 throw IOException("Existing Wi-Fi is not connected or has no usable address. Connect both devices to the same Wi-Fi in system settings")
             }
             Thread.sleep(200)
@@ -147,7 +151,15 @@ class ExistingWifiManager(
 
     private fun sameLink(properties: LinkProperties): Boolean =
         properties.interfaceName == interfaceName && properties.linkAddresses.any { it.address == host } &&
-            existingWifiHostAddresses(properties.linkAddresses.map { it.address }, interfaceIndex).toSet() == hosts.toSet()
+            existingWifiHostAddresses(properties.linkAddresses.map { it.address }, interfaceIndex, iphoneHotspot).toSet() == hosts.toSet()
+
+    override fun validateReady() {
+        val network = selected ?: throw IOException("Existing Wi-Fi is not attached")
+        val current = connectivity.getLinkProperties(network)
+        if (closed || invalidated.get() || current == null || !sameLink(current)) {
+            throw IOException("Existing Wi-Fi changed during startup; connect again")
+        }
+    }
 
     private fun security(): Iap2WirelessSecurity =
         if (passphrase.isEmpty()) Iap2WirelessSecurity.NONE else Iap2WirelessSecurity.WPA_WPA2
@@ -171,7 +183,7 @@ class ExistingWifiManager(
     }
 
     override fun connectionDiagnosticSnapshot(): String =
-        "existingWifiLink=${if (closed || invalidated.get()) "lost" else "attached"}"
+        "existingWifiLink=${if (closed || invalidated.get()) "lost" else "attached"} iphoneHotspot=$iphoneHotspot"
 
     override fun close() {
         synchronized(lock) {

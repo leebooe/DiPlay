@@ -221,8 +221,29 @@ class ExistingWifiManagerTest {
         assertThrows(IllegalArgumentException::class.java) { manager("short") }
     }
 
-    private fun manager(password: String = "pocket-password") = ExistingWifiManager(context,
-        "Pocket Wi-Fi", password, diagnostics::add, { changes++ })
+    @Test fun iphoneHotspotKeepsDhcpIpv4AndIgnoresLinkLocalChurn() {
+        properties.setLinkAddresses(properties.linkAddresses + linkAddress("fe80::1234/64"))
+        manager(iphoneHotspot = true).use {
+            val result = start(it)
+            assertEquals(listOf("192.0.2.10"), result.hostAddresses.map { host -> host.hostAddress })
+            properties.setLinkAddresses(listOf(linkAddress("192.0.2.10/24"), linkAddress("fe80::5678/64")))
+            callback.onLinkPropertiesChanged(network, properties)
+            it.validateReady()
+            assertEquals(0, changes)
+            properties = link("192.0.2.11/24")
+            assertThrows(IOException::class.java) { it.validateReady() }
+        }
+    }
+
+    @Test fun iphoneHotspotWaitsForDhcpInsteadOfPublishingOnlyIpv6() {
+        properties = link("fe80::1234/64")
+        manager(iphoneHotspot = true).use {
+            assertTrue(assertThrows(IOException::class.java) { start(it, 1) }.message!!.contains("iPhone hotspot IPv4"))
+        }
+    }
+
+    private fun manager(password: String = "pocket-password", iphoneHotspot: Boolean = false) = ExistingWifiManager(context,
+        "Pocket Wi-Fi", password, diagnostics::add, { changes++ }, iphoneHotspot)
 
     private fun link(address: String) = LinkProperties().apply {
         interfaceName = iface.name

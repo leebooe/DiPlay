@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">Власний хот-спот iPhone (експериментально)</string>
+    <string name="settings_iphone_hotspot_description">Увімкніть власний хот-спот і доступ для інших на тому самому iPhone CarPlay. Підключіть головний пристрій у налаштуваннях Wi-Fi. Збережіть нижче назву й пароль і виберіть цей iPhone через Bluetooth. Потрібна перевірка з вашою iOS. Зміни діятимуть із наступного підключення.</string>
+    <string name="settings_iphone_hotspot_help">Залиште хот-спот увімкненим на вибраному iPhone CarPlay і підключіть головний пристрій. Перевірте назву й пароль і повторіть спробу. У разі повторної помилки збережіть діагностичний звіт; режим експериментальний.</string>
+</resources>

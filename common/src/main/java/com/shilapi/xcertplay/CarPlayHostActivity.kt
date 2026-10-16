@@ -82,7 +82,6 @@ import com.shilapi.xcertplay.airplay.CarPlayDisplayScale
 import com.shilapi.xcertplay.airplay.CarPlayUiScale
 import com.shilapi.xcertplay.airplay.AirPlayDisplayConfig
 import com.shilapi.xcertplay.airplay.AirPlayIdentity
-import com.shilapi.xcertplay.airplay.AirPlayIcon
 import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.airplay.AirPlaySafeArea
 import com.shilapi.xcertplay.airplay.AirPlaySession
@@ -217,6 +216,7 @@ class CarPlayHostActivity : ComponentActivity() {
         manualHotspotSecurity = manualHotspotSecurity,
         existingWifiSsid = existingWifiSsid,
         existingWifiPassphrase = existingWifiPassphrase,
+        existingWifiIphoneHotspot = existingWifiIphoneHotspot,
         locationReportingEnabled = locationReportingEnabled,
         availableCurrentMilliAmps = AirPlayPersistence.loadUsbChargingCurrent(this).milliAmps,
     )
@@ -532,6 +532,7 @@ class CarPlayHostActivity : ComponentActivity() {
     private var manualHotspotSsid = ""
     private var existingWifiSsid = ""
     private var existingWifiPassphrase = ""
+    private var existingWifiIphoneHotspot = false
     private var manualHotspotPassphrase = ""
     private var manualHotspotBand = ManualHotspotBand.AUTO
     private var manualHotspotChannel = 0
@@ -911,6 +912,7 @@ class CarPlayHostActivity : ComponentActivity() {
         wirelessHotspotMode = AirPlayPersistence.loadWirelessHotspotMode(this)
         existingWifiSsid = AirPlayPersistence.loadExistingWifiSsid(this)
         existingWifiPassphrase = AirPlayPersistence.loadExistingWifiPassphrase(this)
+        existingWifiIphoneHotspot = AirPlayPersistence.loadExistingWifiIphoneHotspot(this)
         manualHotspotSsid = AirPlayPersistence.loadManualHotspotSsid(this)
         manualHotspotPassphrase = AirPlayPersistence.loadManualHotspotPassphrase(this)
         manualHotspotBand = AirPlayPersistence.loadManualHotspotBand(this)
@@ -1552,10 +1554,17 @@ class CarPlayHostActivity : ComponentActivity() {
         }
     }
 
+    private fun sendWheelMediaButton(index: Int): Boolean =
+        if (GeelyWheelKeys.supportedHeadUnit) {
+            CarPlayMediaKeys.onHardwareMediaKey(controller, index, "window")
+        } else controller?.sendMediaButton(index) == true
+
     // Hardware navigation belongs to the iPhone-rendered CarPlay UI, not Android View focus.
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val physicalKey = Triple(event.deviceId, event.keyCode, event.scanCode)
         val downOrUp = event.action == KeyEvent.ACTION_DOWN || event.action == KeyEvent.ACTION_UP
+        val ownsMedia = !GeelyWheelKeys.supportedHeadUnit ||
+            CarPlayMediaKeys.ownsHardwareMediaKeys(controller)
         if (downOrUp && physicalKey in legacySiriPresses) {
             if (event.action == KeyEvent.ACTION_UP) {
                 legacySiriPresses.remove(physicalKey)
@@ -1578,11 +1587,11 @@ class CarPlayHostActivity : ComponentActivity() {
             (WheelZoomSettings.mediaPlayPause(this) || mediaKeyPresses.hasConsumedPress(physicalKey))) mediaKeyPresses.filter(
             physicalKey, event.action == KeyEvent.ACTION_DOWN, event.repeatCount == 0,
         ) {
-            if (activeAirPlaySession == null || inCall(this) ||
+            if (activeAirPlaySession == null || inCall(this) || !ownsMedia ||
                 !WheelZoomSettings.isMediaPlayPauseKey(this, WheelKey.of(event))) {
                 WheelZoomKeys.Action.PASS
             } else {
-                val sent = controller?.sendMediaButton(CarPlayMediaButton.PLAY_PAUSE) == true
+                val sent = sendWheelMediaButton(CarPlayMediaButton.PLAY_PAUSE)
                 appendLog("Media: assigned wheel key ${event.keyCode} -> CarPlay play/pause sent=$sent")
                 WheelZoomKeys.Action.CONSUME
             }
@@ -1688,7 +1697,7 @@ class CarPlayHostActivity : ComponentActivity() {
         // wheel key service — which a head unit with no ADB cannot turn on at all.
         val mediaPress = CarPlayMediaButton.forCarPlayWindow(
             event.keyCode,
-            sessionActive = activeAirPlaySession != null,
+            sessionActive = activeAirPlaySession != null && ownsMedia,
             inCall = inCall(this),
         )
         if (downOrUp && mediaPress != null) {
@@ -1696,7 +1705,7 @@ class CarPlayHostActivity : ComponentActivity() {
             // on the press. The release is swallowed rather than passed on, or BYD's own player would
             // receive an unpaired key.
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                val sent = controller?.sendMediaButton(mediaPress) == true
+                val sent = sendWheelMediaButton(mediaPress)
                 appendLog("Media: wheel key ${event.keyCode} -> CarPlay $mediaPress sent=$sent")
             }
             return true
@@ -3394,6 +3403,7 @@ class CarPlayHostActivity : ComponentActivity() {
         AirPlayPersistence.saveRemoteMfiToken(this, remoteMfiToken)
         AirPlayPersistence.saveWirelessHotspotMode(this, wirelessHotspotMode)
         AirPlayPersistence.saveExistingWifiCredentials(this, existingWifiSsid, existingWifiPassphrase)
+        AirPlayPersistence.saveExistingWifiIphoneHotspot(this, existingWifiIphoneHotspot)
         AirPlayPersistence.saveManualHotspotSsid(this, manualHotspotSsid)
         AirPlayPersistence.saveManualHotspotPassphrase(this, manualHotspotPassphrase)
         AirPlayPersistence.saveManualHotspotBand(this, manualHotspotBand)
@@ -3426,7 +3436,7 @@ class CarPlayHostActivity : ComponentActivity() {
     /** Mirrors [persistMenuSettings]: a field staged there belongs here too. */
     private fun menuSettingsSignature(): Int = listOf(
         gestureFingerCount, wirelessEnabled, mfiTarget, mfiI2cPath, remoteMfiServer, remoteMfiToken,
-        wirelessHotspotMode, existingWifiSsid, existingWifiPassphrase, manualHotspotSsid,
+        wirelessHotspotMode, existingWifiSsid, existingWifiPassphrase, existingWifiIphoneHotspot, manualHotspotSsid,
         manualHotspotPassphrase, manualHotspotBand, manualHotspotChannel, manualHotspotSecurity,
         locationReportingEnabled, autoStartOnBoot, advancedAudioChannelMapping, displayScaleTenths,
         displayScalePercent, fps, widthPhysicalMm, physicalSizeBasis, hevcEnabled,
@@ -4487,6 +4497,10 @@ class CarPlayHostActivity : ComponentActivity() {
         manualHotspotErrorView = error
         val existingFields = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            addView(settingsSwitchRow(
+                getString(R.string.settings_iphone_hotspot_title), existingWifiIphoneHotspot,
+                getString(R.string.settings_iphone_hotspot_description),
+            ) { existingWifiIphoneHotspot = it })
             addView(menuText(getString(R.string.existing_wifi_instructions), 14f, MENU_SECONDARY))
             addView(settingsInputRow(getString(R.string.existing_wifi_ssid), existingWifiSsid) {
                 existingWifiSsid = it
@@ -4934,7 +4948,7 @@ class CarPlayHostActivity : ComponentActivity() {
             manufacturer = normalizedManufacturer(),
             model = normalizedModel(),
             oemLabel = oemLabel,
-            icons = listOf(loadAirPlayIcon()),
+            icons = CarButtonIcons.load(this) { appendLog(it) }.icons,
             videoInCar = com.shilapi.xcertplay.hud.BydOutputSettings.videoWhileParkedActive(this),
             mainBufferedAudio = AirPlayPersistence.loadMainBufferedAudio(this),
             speechWithout8And16Khz = AirPlayPersistence.loadSpeechWithout8And16Khz(this),
@@ -4967,44 +4981,12 @@ class CarPlayHostActivity : ComponentActivity() {
         mainHandler.postDelayed({ if (!isDestroyed) probe("after30s") }, 30_000L)
     }
 
-    private fun loadAirPlayIcon(): AirPlayIcon {
-        val customBytes = try {
-            AirPlayPersistence.loadCustomAirPlayIconFile(this)?.readBytes()
-        } catch (_: Exception) {
-            null
-        }
-        if (customBytes != null) {
-            decodeAirPlayIcon(customBytes)?.let { return it }
-            AirPlayPersistence.clearCustomAirPlayIcon(this)
-        }
-        return decodeAirPlayIcon(defaultAirPlayIconBytes())
-            ?: throw IllegalStateException("Packaged AirPlay icon is invalid")
-    }
-
-    private fun decodeAirPlayIcon(encoded: ByteArray): AirPlayIcon? {
-        val (size, bytes) = AirPlayIconSizing.fit(encoded) ?: return null
-        if (bytes !== encoded) appendLog("CarPlay car-button icon resized bytes=${encoded.size}->${bytes.size} pixels=$size")
-        return AirPlayIcon(size, size, bytes)
-    }
-
-    private fun defaultAirPlayIconBytes(): ByteArray =
-        // Shown in CarPlay's app list as the "back to the car" button.
-        resources.openRawResource(R.raw.ic_car_home).use { it.readBytes() }
-
     private fun updateAirPlayIconPreview() {
         val preview = iconPreviewView ?: return
-        val custom = AirPlayPersistence.loadCustomAirPlayIconFile(this)
-        var customBitmap: Bitmap? = null
-        if (custom != null) {
-            customBitmap = BitmapFactory.decodeFile(custom.absolutePath)
-            if (customBitmap == null) {
-                AirPlayPersistence.clearCustomAirPlayIcon(this)
-            }
-        }
-        val bitmap = customBitmap ?: BitmapFactory.decodeResource(resources, R.raw.placeholder_icon)
-        preview.setImageBitmap(bitmap)
-        iconStatusView?.text =
-            if (customBitmap != null) getString(R.string.custom_1_1_icon) else getString(R.string.default_placeholder_icon)
+        val selected = CarButtonIcons.load(this) { appendLog(it) }
+        val icon = selected.icons.last()
+        preview.setImageBitmap(BitmapFactory.decodeByteArray(icon.data, 0, icon.data.size))
+        iconStatusView?.text = getString(selected.statusRes)
     }
 
     private fun currentActivitySize(): DisplaySize? {
@@ -5126,6 +5108,7 @@ class CarPlayHostActivity : ComponentActivity() {
         videoWidth: Int,
         videoHeight: Int,
         controllerGeneration: Int,
+        audioFocusEnabled: Boolean,
     ): AndroidMediaSink {
         // Capture this session's log: late decoder shutdown must not write into a new session.
         val diagnosticLog = sessionLog
@@ -5135,7 +5118,7 @@ class CarPlayHostActivity : ComponentActivity() {
             videoHeight = videoHeight,
             preferSoftwareHevcDecoder = hevcSoftwareDecoderEnabled,
             advancedAudioChannelMapping = advancedAudioChannelMapping,
-            audioFocusEnabled = AirPlayPersistence.loadAudioFocusEnabled(this),
+            audioFocusEnabled = audioFocusEnabled,
             audioFocusAutoYield = AirPlayPersistence.loadAudioFocusAutoYield(this),
             mediaChannel = AirPlayPersistence.loadMediaAudioChannel(this),
             navigationChannel = AirPlayPersistence.loadNavigationAudioChannel(this),
@@ -5153,7 +5136,13 @@ class CarPlayHostActivity : ComponentActivity() {
                     diagnosticLog?.append(formattedLogLine(message, System.currentTimeMillis()))
                 }
             },
-            onMediaAudioChanged = CarPlayMediaKeys::onMediaAudioChanged,
+            onMediaAudioChanged = { active ->
+                mainHandler.post {
+                    if (controllerGeneration == restartGeneration && !shuttingDown.get()) {
+                        CarPlayMediaKeys.onMediaAudioChanged(active)
+                    }
+                }
+            },
             callEchoCancellation = AirPlayPersistence.loadCallEchoCancellation(this),
             callVoiceFilter = AirPlayPersistence.loadCallVoiceFilter(this),
             callSpeakerphone = { AirPlayPersistence.loadCallSpeakerphone(this) },
@@ -5470,10 +5459,12 @@ class CarPlayHostActivity : ComponentActivity() {
                 "location=${config.locationReportingEnabled} " +
                 "mfi=${config.mfiTarget}",
         )
+        val rendererFocusEnabled = !airPlayConfig.disableAudioOutput && AirPlayPersistence.loadAudioFocusEnabled(this)
         val renderer = createMediaSink(
             videoWidth = airPlayConfig.main.widthPixels,
             videoHeight = airPlayConfig.main.heightPixels,
             controllerGeneration = controllerGeneration,
+            audioFocusEnabled = rendererFocusEnabled,
         )
         sink = renderer
         currentSurface?.let(::attachSurface)
@@ -5505,7 +5496,8 @@ class CarPlayHostActivity : ComponentActivity() {
         controller = next
         resetSidePanel() // a new session starts without the side panel
         updateClusterMapShown()
-        CarPlayMediaKeys.attach(this, next)
+        CarPlayMediaKeys.attach(this, next, bluetoothAudio = airPlayConfig.disableAudioOutput,
+            rendererFocusEnabled = rendererFocusEnabled)
         if (airPlayConfig.videoInCar) CarPlayVideo.attach(this, next)
         val display = CarPlaySessionDisplay(
             airPlayConfig.main.widthPixels, airPlayConfig.main.heightPixels,
@@ -6438,7 +6430,9 @@ class CarPlayHostActivity : ComponentActivity() {
         connectionInstructionsView?.visibility = if (failure == null) View.VISIBLE else View.GONE
         connectionHelpView?.apply {
             visibility = if (failure == null) View.GONE else View.VISIBLE
-            if (failure != null) text = getString(ConnectionFailureGuidance.message(failure, wirelessEnabled, wirelessHotspotMode))
+            if (failure != null) text = getString(ConnectionFailureGuidance.message(
+                failure, wirelessEnabled, wirelessHotspotMode, existingWifiIphoneHotspot,
+            ))
         }
     }
 

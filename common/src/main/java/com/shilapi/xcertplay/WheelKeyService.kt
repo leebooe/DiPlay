@@ -47,7 +47,10 @@ class WheelKeyService : AccessibilityService() {
     private val siriKey = WheelSiriKey()
     /** A remapped media key is handled by the same accessibility input filter as the Siri key. */
     internal var sendMedia: (Int) -> Boolean = { index ->
-        CarPlayBackgroundSession.snapshot()?.controller?.sendMediaButton(index) == true
+        val active = CarPlayBackgroundSession.snapshot()?.controller
+        if (GeelyWheelKeys.supportedHeadUnit) {
+            CarPlayMediaKeys.onHardwareMediaKey(active, index, "accessibility")
+        } else active?.sendMediaButton(index) == true
     }
     private val handler = Handler(Looper.getMainLooper())
     private var doubleSiriFirstPressWasInCall = false
@@ -367,6 +370,8 @@ class WheelKeyService : AccessibilityService() {
 
     private fun mediaPress(role: WheelZoomSettings.Role?, calling: Boolean): WheelZoomKeys.Action? {
         if (role != WheelZoomSettings.Role.MEDIA_PLAY_PAUSE || calling || session() == null) return null
+        if (GeelyWheelKeys.supportedHeadUnit &&
+            !CarPlayMediaKeys.ownsHardwareMediaKeys(CarPlayBackgroundSession.snapshot()?.controller)) return null
         note("Remapped wheel media play/pause sent=${sendMedia(CarPlayMediaButton.PLAY_PAUSE)}")
         return WheelZoomKeys.Action.CONSUME
     }

@@ -1,11 +1,11 @@
 <resources>
     <string name="existing_wifi_title">現有 Wi-Fi / 同一區域網路</string>
-    <string name="existing_wifi_description">使用已有路由器或隨身 Wi-Fi。讓 iPhone 和車機保持連線同一網路，並透過它上網。</string>
-    <string name="existing_wifi_hint">現有 Wi-Fi · 兩部裝置保持連線同一 Wi-Fi，藍牙保持開啟，無需開啟車機熱點。</string>
-    <string name="existing_wifi_instructions">先在系統設定中將車機和 iPhone 連線同一外部 Wi-Fi，再準確填寫它的名稱和 WPA2 密碼；僅開放網路可留空密碼。路由器使用 WPA2 或 WPA2/WPA3 混合模式，並關閉用戶端隔離。DiPlay 保持此 Wi-Fi 連線，不建立熱點。</string>
-    <string name="existing_wifi_details">外部 Wi-Fi 詳細資訊</string>
-    <string name="existing_wifi_ssid">外部 Wi-Fi 名稱（SSID）</string>
-    <string name="existing_wifi_password">外部 Wi-Fi 密碼</string>
+    <string name="existing_wifi_description">使用外部路由器或隨身 Wi-Fi。嘗試使用 CarPlay iPhone 自身的熱點時，請開啟下方的「iPhone 個人熱點」。</string>
+    <string name="existing_wifi_hint">現有 Wi-Fi · 保持車機連接已設定的 Wi-Fi，並保持藍牙開啟。</string>
+    <string name="existing_wifi_instructions">使用路由器或隨身 Wi-Fi 時，將兩台裝置連接到它，並允許用戶端互訪和多播 DNS。使用 CarPlay iPhone 自身的熱點時，開啟實驗選項並將車機連接到該熱點。在下方準確填寫 Wi-Fi 名稱和 WPA2 密碼；開放網路的密碼留空。變更將於下次連線時生效。</string>
+    <string name="existing_wifi_details">Wi-Fi 詳細資料</string>
+    <string name="existing_wifi_ssid">Wi-Fi 名稱（SSID）</string>
+    <string name="existing_wifi_password">Wi-Fi 密碼</string>
     <string name="existing_wifi_attaching">正在接入現有 Wi-Fi</string>
     <string name="existing_wifi_ready">現有 Wi-Fi 就緒：%1$s · %2$s · 頻道 %3$d · %4$s</string>
     <string name="wifi_direct_channel_title">首選 Wi-Fi Direct 頻道</string>

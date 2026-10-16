@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">Режим модема iPhone (экспериментально)</string>
+    <string name="settings_iphone_hotspot_description">Включите режим модема и доступ для других на том же iPhone CarPlay. Подключите головное устройство в настройках Wi-Fi. Сохраните ниже имя и пароль и выберите этот iPhone по Bluetooth. Требуется проверка с вашей iOS. Изменения применятся при следующем подключении.</string>
+    <string name="settings_iphone_hotspot_help">Оставьте режим модема включённым на выбранном iPhone CarPlay и подключите к нему головное устройство. Проверьте имя и пароль и повторите попытку. При повторной ошибке сохраните диагностический отчёт; режим экспериментальный.</string>
+</resources>

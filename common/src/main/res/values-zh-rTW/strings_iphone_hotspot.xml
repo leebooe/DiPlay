@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">iPhone 個人熱點（實驗性）</string>
+    <string name="settings_iphone_hotspot_description">在執行 CarPlay 的同一台 iPhone 上開啟個人熱點與「允許其他人加入」，再透過車機系統 Wi-Fi 設定連接該熱點。在下方儲存熱點名稱和密碼，並透過藍牙選擇這台 iPhone。此模式需要搭配你的 iOS 版本實測。變更將於下次連線時生效。</string>
+    <string name="settings_iphone_hotspot_help">保持所選 CarPlay iPhone 的個人熱點開啟，並讓車機連接該熱點。核對儲存的熱點名稱和密碼後重試。CarPlay 仍連線失敗時，請儲存診斷報告；此模式屬於實驗性功能。</string>
+</resources>

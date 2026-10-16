@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">Punto de acceso personal del iPhone (experimental)</string>
+    <string name="settings_iphone_hotspot_description">Activa Compartir Internet y permite conexiones en el mismo iPhone de CarPlay. Conecta el equipo desde los ajustes Wi-Fi del coche. Guarda abajo el nombre y la contraseña y selecciona ese iPhone por Bluetooth. Requiere pruebas con tu iOS. Los cambios se aplican en la próxima conexión.</string>
+    <string name="settings_iphone_hotspot_help">Mantén Compartir Internet activo en el iPhone de CarPlay y conecta el equipo a él. Comprueba el nombre y la contraseña y reintenta. Guarda un informe si CarPlay sigue fallando; este modo es experimental.</string>
+</resources>

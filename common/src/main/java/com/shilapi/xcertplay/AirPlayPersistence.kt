@@ -411,6 +411,15 @@ object AirPlayPersistence {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString("existing_wifi_ssid", "").orEmpty()
 
+    fun loadExistingWifiIphoneHotspot(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean("existing_wifi_iphone_hotspot", false)
+
+    fun saveExistingWifiIphoneHotspot(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean("existing_wifi_iphone_hotspot", enabled).apply()
+    }
+
     fun loadExistingWifiPassphrase(context: Context): String =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString("existing_wifi_passphrase", "").orEmpty()
@@ -583,11 +592,14 @@ object AirPlayPersistence {
             .apply()
     }
 
-    fun loadOemLabel(context: Context): String =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getString(KEY_OEM_LABEL, DEFAULT_OEM_LABEL)
-            // iOS hides the car icon without a label.
-            .orEmpty().ifBlank { DEFAULT_OEM_LABEL }
+    fun loadOemLabel(context: Context): String {
+        val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_OEM_LABEL, null)
+        val factory = GeelyFactoryCarPlay.load(context)
+        // Earlier versions automatically saved the BYD default on Geely head units.
+        if (factory != null && (stored.isNullOrBlank() || stored == DEFAULT_OEM_LABEL)) return factory.iconLabel
+        // iOS requires a nonempty label to display the car button.
+        return stored.orEmpty().ifBlank { DEFAULT_OEM_LABEL }
+    }
 
     fun saveOemLabel(context: Context, oemLabel: String) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()

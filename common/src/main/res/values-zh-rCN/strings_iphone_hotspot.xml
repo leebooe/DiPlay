@@ -1,0 +1,5 @@
+<resources>
+    <string name="settings_iphone_hotspot_title">iPhone 个人热点（实验性）</string>
+    <string name="settings_iphone_hotspot_description">在运行 CarPlay 的同一台 iPhone 上开启个人热点和“允许其他人加入”，再通过车机系统 Wi-Fi 设置连接该热点。在下方保存热点名称和密码，并通过蓝牙选择这台 iPhone。此模式需要结合你的 iOS 版本实测。更改将在下次连接时生效。</string>
+    <string name="settings_iphone_hotspot_help">保持所选 CarPlay iPhone 的个人热点开启，并让车机连接该热点。核对保存的热点名称和密码后重试。CarPlay 仍连接失败时，请保存诊断报告；此模式属于实验性功能。</string>
+</resources>

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="existing_wifi_title">Существующая Wi-Fi / Одна LAN</string>
-    <string name="existing_wifi_description">Используйте существующий роутер или мобильную точку Wi-Fi. iPhone и автомобиль остаются в одной сети с доступом в Интернет.</string>
-    <string name="existing_wifi_hint">Существующая Wi-Fi · Подключите оба устройства к одной Wi-Fi и включите Bluetooth. Точка доступа автомобиля не нужна.</string>
-    <string name="existing_wifi_instructions">В системных настройках подключите автомобиль и iPhone к одной внешней Wi-Fi. Введите её точное имя и пароль WPA2; оставьте пароль пустым только для открытой сети. Используйте WPA2 или смешанный режим WPA2/WPA3 и отключите изоляцию клиентов на роутере. DiPlay сохраняет это подключение и не создаёт точку доступа.</string>
-    <string name="existing_wifi_details">Данные внешней Wi-Fi</string>
-    <string name="existing_wifi_ssid">Имя внешней Wi-Fi (SSID)</string>
-    <string name="existing_wifi_password">Пароль внешней Wi-Fi</string>
+    <string name="existing_wifi_description">Используйте роутер или портативный Wi-Fi. Для точки доступа самого iPhone CarPlay включите опцию ниже.</string>
+    <string name="existing_wifi_hint">Существующий Wi-Fi · Оставьте головное устройство в настроенной сети и включите Bluetooth.</string>
+    <string name="existing_wifi_instructions">Для роутера или портативного Wi-Fi подключите оба устройства и разрешите обмен между клиентами и multicast DNS. Для точки доступа самого iPhone CarPlay включите экспериментальную опцию и подключите к ней головное устройство. Введите точное имя и пароль WPA2; для открытой сети оставьте пароль пустым. Изменения применятся при следующем подключении.</string>
+    <string name="existing_wifi_details">Параметры Wi-Fi</string>
+    <string name="existing_wifi_ssid">Имя Wi-Fi (SSID)</string>
+    <string name="existing_wifi_password">Пароль Wi-Fi</string>
     <string name="existing_wifi_attaching">Подключение к существующей Wi-Fi</string>
     <string name="existing_wifi_ready">Существующая Wi-Fi готова: %1$s · %2$s · канал %3$d · %4$s</string>
     <string name="wifi_direct_channel_title">Предпочтительный канал Wi-Fi Direct</string>

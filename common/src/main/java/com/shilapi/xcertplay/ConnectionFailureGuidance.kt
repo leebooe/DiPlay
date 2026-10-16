@@ -14,13 +14,14 @@ internal object ConnectionFailureGuidance {
         failure: CarPlayStatus.Failed,
         wireless: Boolean,
         mode: WirelessHotspotMode = WirelessHotspotMode.MANUAL,
+        iphoneHotspot: Boolean = false,
     ): Int {
         if (failure.wifiResetRequired) return R.string.connection_help_reset_wifi
         when (failure.startupFailure) {
             WirelessStartupFailure.BLUETOOTH_UNUSABLE -> return R.string.connection_help_bluetooth_unusable
             WirelessStartupFailure.HOTSPOT_NOT_READY,
-            WirelessStartupFailure.HOTSPOT_CONFIGURATION -> return network(mode)
-            WirelessStartupFailure.FIRST_TCP_TIMEOUT -> return iphoneWifi(mode)
+            WirelessStartupFailure.HOTSPOT_CONFIGURATION -> return network(mode, iphoneHotspot)
+            WirelessStartupFailure.FIRST_TCP_TIMEOUT -> return iphoneWifi(mode, iphoneHotspot)
             null -> Unit
         }
 
@@ -39,24 +40,24 @@ internal object ConnectionFailureGuidance {
             return R.string.connection_help_bluetooth
         }
         if ("hotspot" in error || "access point" in error || "creategroup" in error) {
-            return network(mode)
+            return network(mode, iphoneHotspot)
         }
         if ("wifi" in error || "wi-fi" in error || "tcp" in error || "airplay" in error) {
-            return iphoneWifi(mode)
+            return iphoneWifi(mode, iphoneHotspot)
         }
         return R.string.connection_help_general
     }
 
     /** The network the iPhone joins: the car hotspot, a Wi-Fi Direct group, or a shared Wi-Fi. */
     @StringRes
-    private fun network(mode: WirelessHotspotMode): Int = when (mode) {
+    private fun network(mode: WirelessHotspotMode, iphoneHotspot: Boolean): Int = when (mode) {
         WirelessHotspotMode.MANUAL -> R.string.connection_help_hotspot
-        WirelessHotspotMode.EXISTING_WIFI -> R.string.connection_help_existing_wifi
+        WirelessHotspotMode.EXISTING_WIFI -> if (iphoneHotspot) R.string.settings_iphone_hotspot_help else R.string.connection_help_existing_wifi
         WirelessHotspotMode.WIFI_P2P, WirelessHotspotMode.LOCAL_ONLY_HOTSPOT -> R.string.connection_help_wifi_direct
     }
 
     /** Only the car hotspot is a network the driver joins on the iPhone. */
     @StringRes
-    private fun iphoneWifi(mode: WirelessHotspotMode): Int =
-        if (mode == WirelessHotspotMode.MANUAL) R.string.connection_help_iphone_wifi else network(mode)
+    private fun iphoneWifi(mode: WirelessHotspotMode, iphoneHotspot: Boolean): Int =
+        if (mode == WirelessHotspotMode.MANUAL) R.string.connection_help_iphone_wifi else network(mode, iphoneHotspot)
 }

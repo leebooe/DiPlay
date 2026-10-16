@@ -1280,7 +1280,7 @@ class CarPlayController(
             wirelessConnectionProof.begin(generation) {
                 if (!isStaleWirelessRun(generation)) startedHotspot?.onCarPlayConfirmed()
             }
-            val preferredFamily = HotspotAddressPolicy.parseFamily(
+            val preferredFamily = if (config.usesIphoneHotspot) HotspotAddressPolicy.FAMILY_IPV4 else HotspotAddressPolicy.parseFamily(
                 appContext.getSharedPreferences(WIRELESS_PREFS, Context.MODE_PRIVATE)
                     .getString(HOTSPOT_FAMILY_PREFERENCE_KEY, null),
             )
@@ -1538,6 +1538,7 @@ class CarPlayController(
                 timeoutMillis = controlLoopTimeoutMillis(),
                 keepAliveAfterDeadline = { keepBluetoothControlAlive(generation) },
                 beforeStartSession = { startedHotspot?.validateReady() },
+                startSessionAfterAuthentication = config.usesIphoneHotspot,
                 onStartSessionSent = { watchdog.startSessionSent(it.sentAtNanos) },
                 onIncoming = ::onRouteFrame,
                 onProgress = { message ->
@@ -2378,6 +2379,7 @@ class CarPlayController(
             WirelessHotspotMode.EXISTING_WIFI -> ExistingWifiManager(
                 appContext, config.existingWifiSsid, config.existingWifiPassphrase, ::debugLog,
                 onNetworkChanged = { if (!isStaleWirelessRun(generation)) restartWireless() },
+                iphoneHotspot = config.usesIphoneHotspot,
             )
             WirelessHotspotMode.MANUAL -> ManualHotspotManager(
                 context = appContext,
@@ -2761,7 +2763,9 @@ class CarPlayController(
             debugLog("wireless interface scan failed iface=$name error=${error.javaClass.simpleName}")
             emptyList()
         }
-        return if (scanned.isEmpty() && fallbackToSnapshot) info.hostAddresses else scanned
+        val addresses = if (scanned.isEmpty() && fallbackToSnapshot) info.hostAddresses else scanned
+        // Keep iPhone-hotspot retries on its DHCP IPv4 path, including address-family recovery.
+        return if (config.usesIphoneHotspot) addresses.filterIsInstance<java.net.Inet4Address>() else addresses
     }
 
     private fun hostAddressText(address: InetAddress): String {
