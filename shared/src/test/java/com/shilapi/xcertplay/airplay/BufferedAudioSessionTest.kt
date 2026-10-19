@@ -22,6 +22,39 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class BufferedAudioSessionTest {
     @Test
+    fun audioOutputSettingGatesEveryAudioStreamWhileKeepingTheScreenAvailable() {
+        for (disabled in listOf(false, true)) {
+            val audioSetups = mutableListOf<Int>()
+            val session = session(disabled = disabled, media = object : AirPlayMediaHandler {
+                override fun onScreen(session: AirPlaySession, type: Int, stream: Map<String, Any?>): Int = 1234
+
+                override fun onAudio(session: AirPlaySession, type: Int, stream: Map<String, Any?>): Map<String, Any?> {
+                    audioSetups += type
+                    return mapOf("type" to type, "dataPort" to 1234)
+                }
+
+                override fun onBufferedAudio(session: AirPlaySession, stream: Map<String, Any?>): Map<String, Any?> {
+                    audioSetups += 103
+                    return mapOf("type" to 103, "dataPort" to 1234)
+                }
+            })
+            try {
+                val types = listOf(110, 100, 101, 102, 103)
+                val response = handle(session, "SETUP", BplistCodec.encode(mapOf(
+                    "streams" to types.map { mapOf("type" to it) },
+                )))
+                val decoded = BplistCodec.decode(response.body) as Map<*, *>
+                val accepted = (decoded["streams"] as List<*>).map {
+                    ((it as Map<*, *>)["type"] as Number).toInt()
+                }
+                assertEquals(if (disabled) listOf(110) else types, accepted)
+                assertEquals(if (disabled) emptyList<Int>() else types.drop(1), audioSetups)
+                assertEquals(accepted.toSet(), session.activeStreams)
+            } finally { session.close() }
+        }
+    }
+
+    @Test
     fun disabledOutputDeclinesType103BeforeCallingTheMediaHandler() {
         var setups = 0
         val session = session(disabled = true, media = object : AirPlayMediaHandler {

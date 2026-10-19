@@ -10,6 +10,30 @@ import org.junit.Test
 
 class AirPlayInfoPlistTest {
     @Test
+    fun carBluetoothAudioKeepsTheInitialResourcesConsistentWithTheAudioOffer() {
+        val base = AirPlayConfig(
+            deviceName = "test", deviceId = "02:00:00:00:00:02", btMac = "02:00:00:00:00:02",
+            sourceVersion = "366.0", main = AirPlayDisplayConfig(widthPixels = 1280, heightPixels = 720),
+        )
+        val carPlay = AirPlayInfoPlist.build(base)
+        val bluetooth = AirPlayInfoPlist.build(base.copy(disableAudioOutput = true))
+        val carPlayModes = carPlay["modes"] as Map<*, *>
+        val bluetoothModes = bluetooth["modes"] as Map<*, *>
+        val carPlayResources = (carPlayModes["resources"] as List<*>).map { it as Map<*, *> }
+        val bluetoothResources = (bluetoothModes["resources"] as List<*>).map { it as Map<*, *> }
+
+        assertEquals(listOf(1, 2), carPlayResources.map { it["resourceID"] })
+        assertEquals(listOf(1), bluetoothResources.map { it["resourceID"] })
+        assertEquals(carPlayResources.first(), bluetoothResources.single())
+        assertEquals(1, bluetoothResources.single()["transferType"])
+        assertEquals(carPlayModes["appStates"], bluetoothModes["appStates"])
+        assertTrue(carPlay.containsKey("audioFormats"))
+        assertTrue(carPlay.containsKey("audioLatencies"))
+        assertFalse(bluetooth.containsKey("audioFormats"))
+        assertFalse(bluetooth.containsKey("audioLatencies"))
+    }
+
+    @Test
     fun bothDisplaysDeclareAutomaticAppearanceAtConnection() {
         val config = AirPlayConfig(
             deviceName = "test", deviceId = "02:00:00:00:00:02", btMac = "02:00:00:00:00:02",
